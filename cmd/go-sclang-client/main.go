@@ -9,34 +9,22 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	models "github.com/WnP/go-sclang/pkg"
 )
 
 var (
-	host   string
-	port   int
-	stdout bool
-	kill   bool
-	reload bool
+	host    string
+	port    int
+	stdout  bool
+	kill    bool
+	reload  bool
+	timeout time.Duration
+	client  http.Client
 )
 
 func init() {
-	flag.StringVar(&host, "host", "http://localhost", "Server host")
-	flag.StringVar(&host, "h", "http://localhost", "-host shorthand ")
-
-	flag.IntVar(&port, "port", 5533, "Server port")
-	flag.IntVar(&port, "p", 5533, "-port shorthand ")
-
-	flag.BoolVar(&stdout, "stdout", false, "If true return sclang value")
-	flag.BoolVar(&stdout, "o", false, "-stdout shorthand ")
-
-	flag.BoolVar(&kill, "kill", false, "If true kill sclang server")
-	flag.BoolVar(&kill, "k", false, "-kill shorthand ")
-
-	flag.BoolVar(&reload, "reload", false, "If true reload sclang server by sending SIGUSR1")
-	flag.BoolVar(&reload, "r", false, "-kill shorthand ")
-
 	flag.Usage = func() {
 		fmt.Fprintf(
 			os.Stderr,
@@ -56,7 +44,35 @@ Flags:
 		flag.PrintDefaults()
 	}
 
+	flag.StringVar(&host, "host", "http://localhost", "Server host")
+	flag.StringVar(&host, "h", "http://localhost", "-host shorthand ")
+
+	flag.IntVar(&port, "port", 5533, "Server port")
+	flag.IntVar(&port, "p", 5533, "-port shorthand ")
+
+	flag.BoolVar(&stdout, "stdout", false, "If true return sclang value")
+	flag.BoolVar(&stdout, "o", false, "-stdout shorthand ")
+
+	flag.BoolVar(&kill, "kill", false, "If true kill sclang server")
+	flag.BoolVar(&kill, "k", false, "-kill shorthand ")
+
+	flag.BoolVar(&reload, "reload", false, "If true reload sclang server by sending SIGUSR1")
+	flag.BoolVar(&reload, "r", false, "-kill shorthand ")
+
+	var t string
+	// See https://golang.org/pkg/time/#example_ParseDuration for availabe units
+	flag.StringVar(&t, "timeout", "10s", "sclang server timeout")
+	flag.StringVar(&t, "t", "10s", "-timeout shorthand")
+
 	flag.Parse()
+	var err error
+	if timeout, err = time.ParseDuration(t); err != nil {
+		log.Fatalf("Invalid timeout: %v\n", err.Error())
+	}
+
+	client = http.Client{
+		Timeout: timeout,
+	}
 }
 
 func main() {
@@ -86,7 +102,7 @@ func send(query models.Query) {
 		log.Fatalf("Cannot marshal json: %s\n", err.Error())
 	}
 
-	resp, err := http.Post(
+	resp, err := client.Post(
 		fmt.Sprintf("%s:%d/", host, port),
 		"application/json",
 		bytes.NewBuffer(b),

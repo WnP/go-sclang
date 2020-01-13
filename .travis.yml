@@ -1,0 +1,20 @@
+language: go
+
+go:
+- 1.13.x
+
+before_install:
+- sudo apt-get update
+- sudo apt-get install -y upx
+
+script: make dist
+
+deploy:
+  provider: releases
+  api_key:
+    secure: KBGDiz7tIDlkku7R5BLWjy4gQsWl6E6/ODWDo5Z7dD17E/awUvttPP5SqP9Mxtu5NQRMtnJu+96xmIwDHuCeuFuF1mn+ues1KY6Arv1HsScn8JokaW6s9VEa/3Ar8hBHamlPIHQ6wOxk1aylW0amSuIlsw9d9jM9Qrc7LUG5FNSQv5pZBb1peNYzMXpP+DaUTC5gkGGT/1OjXurj+aJaAre/yrN8fRfR/OMBCEyMw7f+2xB4ZRIjnEDbV2SijrAybNgpWSVGnJ0ycO04Vk69XrEUibKSo5S8EBzIo044L1PhzirlxAxBIzln1VaFuutMB/i1iMd0ZP0G6oV0jgP7VzX/alEJsf3gh0igmFXXGEQ0B9/mSTfARDTcqTbaNQkVOlRvjWFEtdBvATMaHlYUtyl7UoA8WgLaFjWEMQb0ZxxxTVETsGiTfKtYeV8NdPNhI1aHRHyvxBrhjAbpV3YYUUyWBMwErclUbs89W0SLxAEk3oMJaZ7o069S7I0DalROFsqw4x6M1KkjBncQ9v1qk0TnIahO8jDmd5qBz0sh5lvvWf8cTR83QWu7f1y7BDM+weGrTSpgJ36z7h2sAypBZYGuXqGnbS+Lg6zDrnGdcWScF6GgjrfWxN/Wg7mIMmrtbeUWWvsqBN6rVCoBQq+R/9BhHhP8AZlF/4l/PWad/yw=
+  file_glob: true
+  file: dist/*
+  skip_cleanup: true
+  on:
+    tags: true

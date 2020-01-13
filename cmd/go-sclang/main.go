@@ -12,21 +12,19 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	models "github.com/WnP/go-sclang/pkg"
 )
 
 var (
-	host string
-	port int
+	host       string
+	port       int
+	timeout    time.Duration
+	bufferSize int
 )
 
 func init() {
-	flag.StringVar(&host, "host", "localhost", "Server host")
-	flag.StringVar(&host, "h", "localhost", "-host shorthand ")
-
-	flag.IntVar(&port, "port", 5533, "Server port")
-	flag.IntVar(&port, "p", 5533, "-port shorthand ")
 
 	flag.Usage = func() {
 		fmt.Fprintf(
@@ -47,7 +45,25 @@ Flags:
 		flag.PrintDefaults()
 	}
 
+	flag.StringVar(&host, "host", "localhost", "Server host")
+	flag.StringVar(&host, "h", "localhost", "-host shorthand")
+
+	flag.IntVar(&port, "port", 5533, "Server port")
+	flag.IntVar(&port, "p", 5533, "-port shorthand")
+
+	flag.IntVar(&bufferSize, "buffer-size", 1024, "Stdout and Stderr buffer size")
+	flag.IntVar(&bufferSize, "b", 1024, "-buffer-size shorthand")
+
+	var t string
+	// See https://golang.org/pkg/time/#example_ParseDuration for availabe units
+	flag.StringVar(&t, "timeout", "4s", "sclang server timeout")
+	flag.StringVar(&t, "t", "4s", "-timeout shorthand")
+
 	flag.Parse()
+	var err error
+	if timeout, err = time.ParseDuration(t); err != nil {
+		log.Fatalf("Invalid timeout: %v\n", err.Error())
+	}
 }
 
 func main() {
@@ -143,8 +159,12 @@ func getHTTPHandler(
 		input <- query
 
 		if query.Stdout {
-			out := <-output
-			fmt.Fprintf(w, out)
+			select {
+			case out := <-output:
+				fmt.Fprintf(w, out)
+			case <-time.After(timeout * time.Second):
+				fmt.Fprintf(w, "Timeout")
+			}
 		}
 
 		if query.Kill || query.Reload {
@@ -208,7 +228,7 @@ func handleStdin(stdin io.WriteCloser, sigTerm <-chan interface{}, input <-chan 
 func handleStdout(stdout io.ReadCloser, requireOutput <-chan interface{}, output chan<- string) {
 	var send bool = false // This is the default value but... explicit is better than implicit
 	for {
-		val := make([]byte, 1024)
+		val := make([]byte, bufferSize)
 		if _, err := stdout.Read(val); err != nil {
 			log.Fatalf("Cannot read stdout: %v\n", err.Error())
 		} else {
@@ -221,20 +241,23 @@ func handleStdout(stdout io.ReadCloser, requireOutput <-chan interface{}, output
 			fmt.Fprint(os.Stdout, v)
 			if send {
 				for _, line := range strings.Split(v, "\n") {
-					if strings.HasPrefix(line, "-> ") {
+					switch {
+					case strings.HasPrefix(line, "-> "):
 						output <- line[3:]
+						send = false
+					case strings.HasPrefix(line, "ERROR: "):
+						output <- line
 						send = false
 					}
 				}
 			}
-
 		}
 	}
 }
 
 func handleStderr(stderr io.ReadCloser) {
 	for {
-		val := make([]byte, 1024)
+		val := make([]byte, bufferSize)
 		if _, err := stderr.Read(val); err != nil {
 			log.Fatalf("Cannot read stderr: %v\n", err.Error())
 		} else {

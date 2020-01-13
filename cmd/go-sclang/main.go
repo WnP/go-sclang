@@ -56,7 +56,9 @@ func main() {
 	output := make(chan string)
 	requireOutput := make(chan interface{})
 
-	cmd := exec.Command("sclang")
+	sclangCmd := getSclangCmd()
+
+	cmd := exec.Command(sclangCmd[0], sclangCmd[1:]...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}
@@ -87,6 +89,19 @@ func main() {
 	if err := cmd.Wait(); err != nil {
 		log.Fatalf("sclang fail: %v\n", err.Error())
 	}
+}
+
+func getSclangCmd() []string {
+	var found bool = false
+	cmd := []string{"sclang"}
+	for _, v := range os.Args {
+		if v == "--" {
+			found = true
+		} else if found {
+			cmd = append(cmd, v)
+		}
+	}
+	return cmd
 }
 
 // Shutdown gracefully

@@ -34,7 +34,7 @@ func init() {
 			`Usage of %s:
 Wrap sclang CLI in order to provide an HTTP API, expose:
 
-POST application/json {"Code": "'sclang code'.postln, "Stdout": true}
+POST application/json {"Code": "'sclang code'.postln", "Stdout": true}
 
 if Stdout is true then sclang return value is returned.
 

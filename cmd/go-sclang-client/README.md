@@ -27,4 +27,8 @@ Flags:
         If true reload sclang server by sending SIGUSR1
   -stdout
         If true return sclang value
+  -t string
+        -timeout shorthand (default "10s")
+  -timeout string
+        sclang server timeout (default "10s")
 ```

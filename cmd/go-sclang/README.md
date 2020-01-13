@@ -12,14 +12,22 @@ if Stdout is true then sclang return value is returned.
 
 Flags:
 
+  -b int
+        -buffer-size shorthand (default 1024)
+  -buffer-size int
+        Stdout and Stderr buffer size (default 1024)
   -h string
-        -host shorthand  (default "localhost")
+        -host shorthand (default "localhost")
   -host string
         Server host (default "localhost")
   -p int
-        -port shorthand  (default 5533)
+        -port shorthand (default 5533)
   -port int
         Server port (default 5533)
+  -t string
+        -timeout shorthand (default "4s")
+  -timeout string
+        sclang server timeout (default "4s")
 ```
 
 Here is the query model:

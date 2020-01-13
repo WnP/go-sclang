@@ -9,3 +9,20 @@ compress:
 
 clean:
 	rm bin/* || return 0
+	rm -rf dist
+
+dist:
+	for platform in linux darwin; do \
+		for arch in amd64 arm; do \
+			if [ $$platform != darwin ] || [ $$arch != arm ]; then \
+				for bin in go-sclang go-sclang-client; do \
+					GOOS=$$platform GOARCH=$$arch go build -ldflags="-s -w" -o ./dist/$$bin-$$platform-$$arch ./cmd/$$bin; \
+				done; \
+			fi; \
+		done; \
+	done
+
+	for f in `find dist -executable -type f` ; do \
+		upx --brute $$f; \
+		sha256sum $$f > $$f-sha256sum.txt; \
+	done

@@ -15,13 +15,15 @@ import (
 )
 
 var (
-	host    string
-	port    int
-	stdout  bool
-	kill    bool
-	reload  bool
-	timeout time.Duration
-	client  http.Client
+	host         string
+	port         int
+	stdout       bool
+	kill         bool
+	reload       bool
+	retry        bool
+	timeout      time.Duration
+	retryTimeout time.Duration
+	client       http.Client
 )
 
 func init() {
@@ -59,15 +61,23 @@ Flags:
 	flag.BoolVar(&reload, "reload", false, "If true reload sclang server by sending SIGUSR1")
 	flag.BoolVar(&reload, "r", false, "-kill shorthand ")
 
+	flag.BoolVar(&retry, "retry", false, "If true will retry if query fail until timeout")
+
 	var t string
+	var tr string
 	// See https://golang.org/pkg/time/#example_ParseDuration for availabe units
 	flag.StringVar(&t, "timeout", "10s", "sclang server timeout")
 	flag.StringVar(&t, "t", "10s", "-timeout shorthand")
+
+	flag.StringVar(&tr, "retry-timeout", "5s", "Retry timeout")
 
 	flag.Parse()
 	var err error
 	if timeout, err = time.ParseDuration(t); err != nil {
 		log.Fatalf("Invalid timeout: %v\n", err.Error())
+	}
+	if retryTimeout, err = time.ParseDuration(tr); err != nil {
+		log.Fatalf("Invalid retry timeout: %v\n", err.Error())
 	}
 
 	client = http.Client{
@@ -92,10 +102,11 @@ func main() {
 		Reload: reload,
 	}
 
-	send(query)
+	deadline := time.Now().Add(retryTimeout)
+	send(query, deadline)
 }
 
-func send(query models.Query) {
+func send(query models.Query, deadline time.Time) {
 
 	b, err := json.Marshal(query)
 	if err != nil {
@@ -108,7 +119,12 @@ func send(query models.Query) {
 		bytes.NewBuffer(b),
 	)
 	if err != nil {
-		log.Fatalf("HTTP query failed: %s\n", err.Error())
+		if retry && time.Now().Before(deadline) {
+			time.Sleep(10 * time.Millisecond)
+			send(query, deadline)
+		} else {
+			log.Fatalf("HTTP query failed: %s\n", err.Error())
+		}
 	}
 
 	if resp.StatusCode != http.StatusOK {
